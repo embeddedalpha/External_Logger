@@ -177,3 +177,18 @@ void W25QX_Init(W25Qx_Typedef *self)
 		self->Last_Address = 0x3FFFFF;
 	}
 }
+
+
+int W25Qx_Read_Byte(uint32_t address)
+{
+	int32_t LA = (int32_t)address;
+	int read = 0;
+	NSS_Low(W25QX);
+	SPI_TRX_Data(W25QX, 0x03);
+	SPI_TRX_Data(W25QX, (0xFF0000 & LA) >> 16);
+	SPI_TRX_Data(W25QX, (0x00FF00 & LA) >> 8);
+	SPI_TRX_Data(W25QX, (0x0000FF & LA) >> 0);
+	read = SPI_TRX_Data(W25QX, 0xAA);
+	SPI_CSS_High(W25QX);
+	return read;
+}

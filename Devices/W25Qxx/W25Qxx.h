@@ -27,4 +27,6 @@ typedef struct __W25Qxx_Config__{
     uint32_t Last_Address;
 } W25Qx_Typedef;
 
+void W25QX_Init(W25Qx_Typedef *self);
+
 #endif /* W25QXX_W25QXX_H_ */
