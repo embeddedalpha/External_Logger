@@ -7,19 +7,17 @@
 
 #include "W25Qxx.h"
 
-SPI_Config W25QX;
 
-#define NSS_Port GPIOA
-#define NSS_Pin  4
 
-static void NSS_Low(void)
+
+static void NSS_Low(W25Qx_Typedef *self)
 {
-	GPIO_Pin_Low(NSS_Port, NSS_Pin);
+	GPIO_Pin_Low(self->cs_port, self->cs_pin);
 }
 
-static void NSS_High(void)
+static void NSS_High(W25Qx_Typedef *self)
 {
-	GPIO_Pin_High(NSS_Port, NSS_Pin);
+	GPIO_Pin_High(self->cs_port, self->cs_pin);
 }
 
 
@@ -55,15 +53,15 @@ struct Status_Register
 
 struct Status_Register SR;
 
-static void Read_Status_Register(void)
+static void Read_Status_Register(W25Qx_Typedef *self)
 {
 	int x[3];
-	NSS_Low();
-	SPI_TRX_Byte(&W25QX, 0x05);
-	x[0] = SPI_TRX_Byte(&W25QX, 0xAA);
-	x[1] = SPI_TRX_Byte(&W25QX, 0xAA);
-	x[2] = SPI_TRX_Byte(&W25QX, 0xAA);
-	NSS_High();
+	NSS_Low(self);
+	SPI_TRX_Byte(self->SPI_Port, 0x05);
+	x[0] = SPI_TRX_Byte(self->SPI_Port, 0xAA);
+	x[1] = SPI_TRX_Byte(self->SPI_Port, 0xAA);
+	x[2] = SPI_TRX_Byte(self->SPI_Port, 0xAA);
+	NSS_High(self);
 
 
 
@@ -90,14 +88,14 @@ static void Read_Status_Register(void)
 	SR.WPS  = ((1 << 2) & x[2]) >> 2;
 }
 
-static int Write_Enable()
+static int Write_Enable(W25Qx_Typedef *self)
 {
 	int retval;
-	NSS_Low();
-	SPI_TRX_Byte(&W25QX, 0x06);
-	NSS_High();
+	NSS_Low(self);
+	SPI_TRX_Byte(self->SPI_Port, 0x06);
+	NSS_High(self);
 
-	Read_Status_Register();
+	Read_Status_Register(self);
 	if(SR.WEL)
 	{
 		retval = 1;
@@ -109,13 +107,13 @@ static int Write_Enable()
 	return retval;
 }
 
-static int Write_Disable()
+static int Write_Disable(W25Qx_Typedef *self)
 {
 	int retval;
-	NSS_Low();
-	SPI_TRX_Byte(&W25QX, 0x04);
-	NSS_High();
-	Read_Status_Register();
+	NSS_Low(self);
+	SPI_TRX_Byte(self->SPI_Port, 0x04);
+	NSS_High(self);
+	Read_Status_Register(self);
 	if(SR.WEL)
 	{
 		retval = -1;
@@ -127,42 +125,45 @@ static int Write_Disable()
 	return retval;
 }
 
-void W25Qx_Release_Power_Down(void)
+void W25Qx_Release_Power_Down(W25Qx_Typedef *self)
 {
-	NSS_Low();
-	SPI_TRX_Byte(&W25QX, 0xAB);
-	NSS_High();
+	NSS_Low(self);
+	SPI_TRX_Byte(self->SPI_Port, 0xAB);
+	NSS_High(self);
 }
 
 void W25QX_Init(W25Qx_Typedef *self)
 {
+
+
+
 	SPI_Init(self->SPI_Port);
-	W25Qx_Release_Power_Down();
+	W25Qx_Release_Power_Down(self);
 	Delay_us(5);
 
-	NSS_Low();
-	SPI_TRX_Byte(&W25QX, 0x9F);
-	self->Manufacturer_ID = SPI_TRX_Byte(&W25QX, 0xAA);
-	self->Memory_Type = SPI_TRX_Byte(&W25QX, 0xAA);
-	self->Capacity = SPI_TRX_Byte(&W25QX, 0xAA);
-	NSS_High();
+	NSS_Low(self);
+	SPI_TRX_Byte(self->SPI_Port, 0x9F);
+	self->Manufacturer_ID = SPI_TRX_Byte(self->SPI_Port, 0xAA);
+	self->Memory_Type = SPI_TRX_Byte(self->SPI_Port, 0xAA);
+	self->Capacity = SPI_TRX_Byte(self->SPI_Port, 0xAA);
+	NSS_High(self);
 
 
 	uint64_t x[8];
-	NSS_Low();
-	SPI_TRX_Byte(&W25QX, 0x4B);
-	SPI_TRX_Byte(&W25QX, 0xAA);
-	SPI_TRX_Byte(&W25QX, 0xAA);
-	SPI_TRX_Byte(&W25QX, 0xAA);
-	SPI_TRX_Byte(&W25QX, 0xAA);
+	NSS_Low(self);
+	SPI_TRX_Byte(self->SPI_Port, 0x4B);
+	SPI_TRX_Byte(self->SPI_Port, 0xAA);
+	SPI_TRX_Byte(self->SPI_Port, 0xAA);
+	SPI_TRX_Byte(self->SPI_Port, 0xAA);
+	SPI_TRX_Byte(self->SPI_Port, 0xAA);
 
 	for(int i = 0 ; i < 8; i++)
 	{
-		x[i] = SPI_TRX_Byte(&W25QX, 0xAA);
+		x[i] = SPI_TRX_Byte(self->SPI_Port, 0xAA);
 	}
 	self->Unique_ID = (x[0] << 56) | (x[1] << 48) | (x[2] << 40) | (x[3] << 32) | (x[4] << 24) | (x[5] << 16) |
 			(x[6] << 8) | (x[7] << 0);
-	NSS_High();
+	NSS_High(self);
 
 	if(self->Memory_Type == 0x13)	//W25Q80
 	{
@@ -179,16 +180,35 @@ void W25QX_Init(W25Qx_Typedef *self)
 }
 
 
-int W25Qx_Read_Byte(uint32_t address)
+int W25Qx_Read_Byte(W25Qx_Typedef *self,uint32_t address)
 {
 	int32_t LA = (int32_t)address;
 	int read = 0;
-	NSS_Low(W25QX);
-	SPI_TRX_Data(W25QX, 0x03);
-	SPI_TRX_Data(W25QX, (0xFF0000 & LA) >> 16);
-	SPI_TRX_Data(W25QX, (0x00FF00 & LA) >> 8);
-	SPI_TRX_Data(W25QX, (0x0000FF & LA) >> 0);
-	read = SPI_TRX_Data(W25QX, 0xAA);
-	SPI_CSS_High(W25QX);
+	NSS_Low(self);
+	SPI_TRX_Byte(self->SPI_Port, 0x03);
+	SPI_TRX_Byte(self->SPI_Port, (0xFF0000 & LA) >> 16);
+	SPI_TRX_Byte(self->SPI_Port, (0x00FF00 & LA) >> 8);
+	SPI_TRX_Byte(self->SPI_Port, (0x0000FF & LA) >> 0);
+	read = SPI_TRX_Byte(self->SPI_Port, 0xAA);
+	NSS_High(self);
 	return read;
+}
+
+
+uint32_t W25Qx_Write_Byte(W25Qx_Typedef *self,uint32_t address, int data)
+{
+	uint32_t temp;
+	Write_Enable(self);
+	NSS_Low(self);
+	SPI_TRX_Byte(self->SPI_Port, 0x02);
+	SPI_TRX_Byte(self->SPI_Port, (0xFF0000 & address) >> 16);
+	SPI_TRX_Byte(self->SPI_Port, (0x00FF00 & address) >> 8);
+	SPI_TRX_Byte(self->SPI_Port, (0x0000FF & address) >> 0);
+	SPI_TRX_Byte(self->SPI_Port, data);
+	NSS_High(self);
+	Write_Disable(self);
+	W25Qx_Store_Last_Position(self, address);
+	temp = W25Qx_Read_Last_Write_Poisition(self);
+	return temp;
+
 }
